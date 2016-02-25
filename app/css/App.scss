@@ -1,0 +1,62 @@
+$success-color : #49d049;
+$fail-color: #ff6666;
+$button-background: #282a36;
+
+html, body, ul {
+  margin: 0;
+  padding: 0;
+}
+button {
+  border: none;
+}
+body {
+  background: #f6f6f6;
+  color: #6171a6;
+  code {
+    background: #e9e9e9;
+    padding: .25rem;
+    font-weight: bold;
+  }
+  ul {
+    list-style-type: none;
+  }
+  ul li {
+    line-height: 1.5rem;
+  }
+  .centerAlign {
+    text-align: center;
+  }
+  #message {
+    background: #eaeaea;
+    display: none;
+    padding: 1rem;
+    border: 10px solid #000;
+  }
+  &.passMessage {
+    #message {
+      color: darken($success-color, 15%);
+      border-color: $success-color;
+    }
+  }
+  &.failMessage {
+    #message {
+      color: darken($fail-color, 15%);
+      border-color: $fail-color;
+    }
+  }
+  &.passMessage, &.failMessage {
+    #message {
+      display: block;
+    }
+  }
+  #submit {
+    font-size: 2rem;
+    margin: 1rem auto 0;
+    display: block;
+    background: $button-background;
+    border-bottom: 5px solid lighten($button-background, 50%);
+    border-radius: .25rem;
+    color: #fff;
+    padding: .75rem 2rem;
+  }
+}
