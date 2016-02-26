@@ -33,25 +33,64 @@ import Config from '../config.json';
 
 const http = (Http).Server(app);
 const io = (IO)(http);
+
 let socket;
 let gameTimer;
+let matchTime;
+let matchStart = false;
+const players = [];
+const clients = [];
+
+// Send all game info
+function gameLoop() {
+  if (matchStart) {
+    for (let i = 0; i < clients.length; i++) {
+      clients[i].emit('gameInfo', players);
+    }
+  }
+}
 
 io.on('connection', (socketConnection) => {
   socket = socketConnection;
 
-  socket.on('startGame', (time) => {
-    console.log('Starting the game!');
-    gameTimer = time;
+  socket.on('joinedGame', (username) => {
+    const player = {};
+    console.log('A new user has joined the game!', username);
+    clients.push(socket);
+    player.id = socket.id;
+    player.name = username;
+    players.push(player);
+    socket.emit('joinMatch', socket.id);
+    matchStart = true;
   });
 
-  socket.on('success', (user, perfTime, time) => {
-    console.log(`[Winner] ${user}`);
+  socket.on('matchEnded', () => {
+    matchStart = false;
+    clearInterval(gameTimer);
+  });
+
+  socket.on('success', (userId, perfTime, time) => {
+    // TODO: Fix time update
+    console.log(`[Winner] ${userId}`);
     console.log(`[Performance Time] ${perfTime}ms`);
-    console.log(time);
-    console.log(gameTimer);
-    console.log('[FINISHED IN]', `${new Date(time - gameTimer).getMinutes()}m:${new Date(time - gameTimer).getSeconds()}s:${new Date(time - gameTimer).getMilliseconds()}ms`);
+    console.log('[FINISHED IN]', `${new Date(time - matchTime).getMinutes()}m:${new Date(time - matchTime).getSeconds()}s:${new Date(time - matchTime).getMilliseconds()}ms`);
+    let username = '';
+    for (let i = 0; i < players.length; i++) {
+      if (players[i].id === userId) {
+        username = players[i].name;
+      }
+    }
+
+    if (username) {
+      for (let i = 0; i < clients.length; i++) {
+        clients[i].emit('alertPlayers', username);
+      }
+    }
   });
 });
+
+// Loop game
+gameTimer = setInterval(gameLoop, 1000 / 60);
 
 // Don't touch, IP configurations.
 const ipaddress = process.env.OPENSHIFT_NODEJS_IP || process.env.IP || '127.0.0.1';

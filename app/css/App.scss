@@ -9,19 +9,68 @@ html, body, ul {
 button {
   border: none;
 }
+code {
+  background: #e9e9e9;
+  padding: .25rem;
+  font-weight: bold;
+}
+ul {
+  list-style-type: none;
+}
+ul li {
+  line-height: 1.5rem;
+}
 body {
   background: #f6f6f6;
   color: #6171a6;
-  code {
-    background: #e9e9e9;
-    padding: .25rem;
-    font-weight: bold;
+  #players {
+    text-align: center;
   }
-  ul {
-    list-style-type: none;
+  &.joinedGame {
+    #gameWrapper {
+      display: block;
+    }
+    #gameInfo {
+      display: none;
+    }
   }
-  ul li {
-    line-height: 1.5rem;
+  #gameWrapper {
+    display: none;
+    &.passMessage {
+      #message {
+        color: darken($success-color, 15%);
+        border-color: $success-color;
+      }
+    }
+    &.failMessage {
+      #message {
+        color: darken($fail-color, 15%);
+        border-color: $fail-color;
+      }
+    }
+    &.passMessage, &.failMessage {
+      #message {
+        display: block;
+      }
+    }
+  }
+  #getInfo {
+    background: #fff;
+    width: 33.3%;
+    margin: 0 auto;
+    padding: 2rem;
+    margin-top: 1rem;
+    border-radius: 1rem;
+    border: 2px solid #eaeaea;
+    text-align: center;
+    h2 {
+      margin-top: 0;
+    }
+    input {
+      font-size: 2rem;
+      padding: .5rem;
+      border: 1px solid #eaeaea;
+    }
   }
   .centerAlign {
     text-align: center;
@@ -31,23 +80,6 @@ body {
     display: none;
     padding: 1rem;
     border: 10px solid #000;
-  }
-  &.passMessage {
-    #message {
-      color: darken($success-color, 15%);
-      border-color: $success-color;
-    }
-  }
-  &.failMessage {
-    #message {
-      color: darken($fail-color, 15%);
-      border-color: $fail-color;
-    }
-  }
-  &.passMessage, &.failMessage {
-    #message {
-      display: block;
-    }
   }
   #submit {
     font-size: 2rem;

@@ -12,30 +12,47 @@ import '../css/App.scss';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/dracula.css';
 
-const editor = CodeMirror.fromTextArea(document.getElementById('demotext'), {
-  lineNumbers: true,
-  mode: 'text/javascript',
-  matchBrackets: true,
-  theme: 'dracula'
-});
-
+let editor;
 let socket;
+let currentPlayer;
 
-
-function socketOptions() {
+function displayNames(playerList) {
+  const container = document.getElementById('players');
+  container.innerHTML = playerList;
 }
 
 function setupSocket() {
   if (!socket) {
-    socket = io({query: 'type=testing'});
-    socketOptions();
-    socket.emit('startGame', new Date().getTime());
+    socket = io({query: 'type=player'});
+
+    // TODO: Join match only if everyone is waiting. Otherwise wait til match is done
+    socket.on('joinMatch', (playerId) => {
+      currentPlayer = playerId;
+      editor = CodeMirror.fromTextArea(document.getElementById('demotext'), {
+        lineNumbers: true,
+        mode: 'text/javascript',
+        matchBrackets: true,
+        theme: 'dracula'
+      });
+    });
+
+    socket.on('gameInfo', (players) => {
+      const playerList = players.map((a) => {
+        return a.name;
+      }).join(', ');
+
+      displayNames(playerList);
+    });
+
+    socket.on('alertPlayers', (user) => {
+      alert(`${user} won the match!`);
+    });
+
+    socket.emit('joinedGame', document.getElementById('playerName').value);
   } else {
     console.log('There is already a socket for you!');
   }
 }
-
-setupSocket();
 
 class TestCode {
   constructor(code) {
@@ -43,10 +60,10 @@ class TestCode {
   }
 
   sendMessage = (status, message) => {
-    const body = document.body;
+    const wrapper = document.getElementById('gameWrapper');
     const container = document.getElementById('message');
     const stat = status ? 'Pass' : 'Fail';
-    body.className = status ? 'passMessage' : 'failMessage';
+    wrapper.className = status ? 'passMessage' : 'failMessage';
     container.innerHTML = `Status: ${stat}<br><br>${message ?  `${message}<br><br>` : ''}Completed in: ${this.performance}ms`;
   }
 
@@ -69,7 +86,7 @@ class TestCode {
     if (answer === result) {
       this.sendMessage(true);
       const finished = new Date().getTime();
-      socket.emit('success', socket.id, this.performance, finished);
+      socket.emit('success', currentPlayer, this.performance, finished);
     } else {
       this.sendMessage(false, `Expected: ${answer}, instead got: ${result}`);
     }
@@ -89,7 +106,12 @@ document.body.onkeydown = (e) => {
   }
 };
 
+function joinGame() {
+  document.body.className = 'joinedGame';
+  setupSocket();
+}
+
 // Execute code
 document.getElementById('submit').onclick = () => {
-  submitTest();
+  joinGame();
 };
