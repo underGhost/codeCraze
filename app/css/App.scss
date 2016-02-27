@@ -25,17 +25,41 @@ body {
   color: #6171a6;
   #players {
     text-align: center;
+    float: right;
+    width: 25%;
   }
-  &.joinedGame {
+  &.waitingGame {
     #gameWrapper {
+      display: none;
+    }
+    #waitingWrapper {
       display: block;
     }
     #gameInfo {
       display: none;
     }
   }
+  &.inGame {
+    #gameWrapper {
+      display: block;
+      float: left;
+      width: 75%;
+    }
+    #waitingWrapper {
+      display: none;
+    }
+    #gameInfo {
+      display: none;
+    }
+  }
+  #waitingWrapper {
+    display: none;
+  }
   #gameWrapper {
     display: none;
+    #demotext {
+      display: none;
+    }
     &.passMessage {
       #message {
         color: darken($success-color, 15%);
@@ -70,6 +94,8 @@ body {
       font-size: 2rem;
       padding: .5rem;
       border: 1px solid #eaeaea;
+      width: 100%;
+      box-sizing: border-box;
     }
   }
   .centerAlign {
@@ -90,5 +116,8 @@ body {
     border-radius: .25rem;
     color: #fff;
     padding: .75rem 2rem;
+  }
+  #rules {
+    clear: both;
   }
 }

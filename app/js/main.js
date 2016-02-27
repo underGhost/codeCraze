@@ -15,39 +15,89 @@ import 'codemirror/theme/dracula.css';
 let editor;
 let socket;
 let currentPlayer;
+let editorDisplayed = false;
 
 function displayNames(playerList) {
   const container = document.getElementById('players');
-  container.innerHTML = playerList;
+  container.innerHTML = `<ul>${playerList}</ul>`;
+}
+
+function startGame() {
+  if (!editorDisplayed) {
+    editor = CodeMirror.fromTextArea(document.getElementById('demotext'), {
+      lineNumbers: true,
+      mode: 'text/javascript',
+      matchBrackets: true,
+      theme: 'dracula'
+    });
+    editorDisplayed = true;
+  }
 }
 
 function setupSocket() {
   if (!socket) {
     socket = io({query: 'type=player'});
 
-    // TODO: Join match only if everyone is waiting. Otherwise wait til match is done
-    socket.on('joinMatch', (playerId) => {
+    socket.on('registerPlayer', (playerId) => {
       currentPlayer = playerId;
-      editor = CodeMirror.fromTextArea(document.getElementById('demotext'), {
-        lineNumbers: true,
-        mode: 'text/javascript',
-        matchBrackets: true,
-        theme: 'dracula'
-      });
     });
 
-    socket.on('gameInfo', (players) => {
-      const playerList = players.map((a) => {
-        return a.name;
-      }).join(', ');
+    socket.on('gameInfo', (gameMode, players) => {
+      // Update player list
+      const playerList = players.filter((p) => {
+        return p.inGame;
+      }).map((p) =>{ return `<li>${p.name}</li>`; }).join('');
 
       displayNames(playerList);
+
+      // Update client based on game status
+      switch (gameMode) {
+      case 'start':
+        // Game going on
+        for (let i = 0; i < players.length; i++) {
+          if (players[i].inGame) {
+            if (document.body.className !== 'inGame') {
+              document.body.className = 'inGame';
+            }
+            startGame();
+          } else {
+            if (document.body.className !== 'waitingGame') {
+              document.body.className = 'waitingGame';
+            }
+            // Player missed the cutoff. Waiting...
+            console.log('Will join when the game ends');
+          }
+        }
+        break;
+      case 'results':
+        // Reset everything and start timer
+        break;
+      default:
+        // Waiting mode
+        if (document.body.className !== 'waitingGame') {
+          document.body.className = 'waitingGame';
+        }
+        break;
+      }
+    });
+
+    socket.on('finalCountdown', (time) => {
+      const container = document.getElementById('countdown');
+      container.style.display = 'block';
+      container.innerHTML = `${time}s til the game is started`;
+    });
+
+    socket.on('stopCountdown', () => {
+      const container = document.getElementById('countdown');
+      container.style.display = 'none';
     });
 
     socket.on('alertPlayers', (user) => {
       alert(`${user} won the match!`);
     });
 
+    // TODO: SANITIZE USERNAME SO NO SPACES AND CHARACTERS ALLOWED
+    // Enter game
     socket.emit('joinedGame', document.getElementById('playerName').value);
   } else {
     console.log('There is already a socket for you!');
@@ -85,8 +135,7 @@ class TestCode {
 
     if (answer === result) {
       this.sendMessage(true);
-      const finished = new Date().getTime();
-      socket.emit('success', currentPlayer, this.performance, finished);
+      socket.emit('success', currentPlayer.id, this.performance);
     } else {
       this.sendMessage(false, `Expected: ${answer}, instead got: ${result}`);
     }
@@ -106,12 +155,8 @@ document.body.onkeydown = (e) => {
   }
 };
 
-function joinGame() {
-  document.body.className = 'joinedGame';
-  setupSocket();
-}
-
+// TODO: BIND THIS TO ENTER FOR SUBMISSION AS WELL
 // Execute code
 document.getElementById('submit').onclick = () => {
-  joinGame();
+  setupSocket();
 };

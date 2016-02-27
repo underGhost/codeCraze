@@ -34,63 +34,150 @@ import Config from '../config.json';
 const http = (Http).Server(app);
 const io = (IO)(http);
 
-let socket;
-let gameTimer;
+let matchStart;
 let matchTime;
-let matchStart = false;
 const players = [];
-const clients = [];
+const clients = {};
+let gameMode = 'waiting';
+
+// Countdown timers
+let countingDown = false;
+let finalCountdown;
+let countdownTime = 10;
+
+function eachPlayer(callback) {
+  for (let i = 0; i < players.length; i++) {
+    callback(players[i], i);
+  }
+}
+
+function stopTimers() {
+  eachPlayer((player) => {
+    clients[player.id].emit('stopCountdown');
+  });
+  countingDown = false;
+  countdownTime = 10;
+  clearInterval(finalCountdown);
+}
+
+function startGame() {
+  stopTimers();
+  gameMode = 'start';
+  matchStart = new Date().getTime();
+}
+
+function countDown() {
+  if (countdownTime > 0) {
+    eachPlayer((player) => {
+      clients[player.id].emit('finalCountdown', countdownTime);
+    });
+    countdownTime--;
+  } else {
+    startGame();
+  }
+}
+
+function startTimers() {
+  // Update each player to in game
+  eachPlayer((player) => {
+    player.inGame = true;
+  });
+  countingDown = true;
+  finalCountdown = setInterval(countDown, 1000);
+}
 
 // Send all game info
 function gameLoop() {
-  if (matchStart) {
-    for (let i = 0; i < clients.length; i++) {
-      clients[i].emit('gameInfo', players);
+  for (const key in clients) {
+    if (key) {
+      // Update clients
+      clients[key].emit('gameInfo', gameMode, players);
     }
   }
 }
 
-io.on('connection', (socketConnection) => {
-  socket = socketConnection;
+function resetGame() {
+  gameMode = 'waiting';
+  matchTime = 0;
+  eachPlayer((player) => {
+    if (player.inGame) {
+      player.inGame = false;
+    }
+  });
+  if (players.length > 1) {
+    startTimers();
+  }
+}
 
+io.on('connection', (socket) => {
   socket.on('joinedGame', (username) => {
     const player = {};
-    console.log('A new user has joined the game!', username);
-    clients.push(socket);
+    let playerIndex;
+    console.log(`${username} joined the game.`);
+    clients[socket.id] = socket;
     player.id = socket.id;
     player.name = username;
+    player.inGame = false;
     players.push(player);
-    socket.emit('joinMatch', socket.id);
-    matchStart = true;
+    playerIndex = players.length - 1;
+    socket.emit('registerPlayer', {index: players.length - 1, id: socket.id});
+    if (gameMode !== 'start' && players.length > 1 && !countingDown) {
+      startTimers();
+    } else if (countingDown) {
+      players[playerIndex].inGame = true;
+    }
   });
 
-  socket.on('matchEnded', () => {
-    matchStart = false;
-    clearInterval(gameTimer);
-  });
+  socket.on('success', (userId, perfTime) => {
+    // TODO: SUBMIT TO COMPLETION ARRAY. WHEN ALL PLAYERS DONE TAKE TO RESULTS PAGE THEN RESET TIMER IF PLAYERS
+    const time = new Date().getTime();
+    let username;
 
-  socket.on('success', (userId, perfTime, time) => {
-    // TODO: Fix time update
     console.log(`[Winner] ${userId}`);
     console.log(`[Performance Time] ${perfTime}ms`);
-    console.log('[FINISHED IN]', `${new Date(time - matchTime).getMinutes()}m:${new Date(time - matchTime).getSeconds()}s:${new Date(time - matchTime).getMilliseconds()}ms`);
-    let username = '';
-    for (let i = 0; i < players.length; i++) {
-      if (players[i].id === userId) {
-        username = players[i].name;
+    console.log('[FINISHED IN]', `${new Date(time - matchStart).getMinutes()}m:${new Date(time - matchStart).getSeconds()}s:${new Date(time - matchStart).getMilliseconds()}ms`);
+
+    eachPlayer((player) => {
+      if (player.id === userId) {
+        username = player.name;
       }
-    }
+    });
 
     if (username) {
-      for (let i = 0; i < clients.length; i++) {
-        clients[i].emit('alertPlayers', username);
+      for (const key in clients) {
+        if (key) {
+          clients[key].emit('alertPlayers', username);
+        }
       }
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('SOMEONE DISCONNECTED', socket.id);
+
+    delete clients[socket.id];
+
+    eachPlayer((player, i) => {
+      if (player.id === socket.id) {
+        players.splice(i, 1);
+      }
+    });
+
+    const playersIngame = players.filter((p) => {
+      return p.inGame;
+    });
+
+    if (playersIngame.length < 2) {
+      if (countingDown) {
+        stopTimers();
+      }
+      resetGame();
     }
   });
 });
 
 // Loop game
-gameTimer = setInterval(gameLoop, 1000 / 60);
+setInterval(gameLoop, 1000 / 60);
 
 // Don't touch, IP configurations.
 const ipaddress = process.env.OPENSHIFT_NODEJS_IP || process.env.IP || '127.0.0.1';
