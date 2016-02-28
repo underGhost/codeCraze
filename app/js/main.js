@@ -42,6 +42,21 @@ function setupSocket() {
       currentPlayer = playerId;
     });
 
+    socket.on('startedGame', () => {
+      if (document.body.className !== 'inGame') {
+        document.body.className = 'inGame';
+      }
+      startGame();
+    });
+
+    socket.on('waitingGame', () => {
+      if (document.body.className !== 'waitingGame') {
+        document.body.className = 'waitingGame';
+      }
+      // Player missed the cutoff. Waiting...
+      console.log('Will join when the game ends');
+    });
+
     socket.on('gameInfo', (gameMode, players) => {
       // Update player list
       const playerList = players.filter((p) => {
@@ -49,36 +64,6 @@ function setupSocket() {
       }).map((p) =>{ return `<li>${p.name}</li>`; }).join('');
 
       displayNames(playerList);
-
-      // Update client based on game status
-      switch (gameMode) {
-      case 'start':
-        // Game going on
-        for (let i = 0; i < players.length; i++) {
-          if (players[i].inGame) {
-            if (document.body.className !== 'inGame') {
-              document.body.className = 'inGame';
-            }
-            startGame();
-          } else {
-            if (document.body.className !== 'waitingGame') {
-              document.body.className = 'waitingGame';
-            }
-            // Player missed the cutoff. Waiting...
-            console.log('Will join when the game ends');
-          }
-        }
-        break;
-      case 'results':
-        // Reset everything and start timer
-        break;
-      default:
-        // Waiting mode
-        if (document.body.className !== 'waitingGame') {
-          document.body.className = 'waitingGame';
-        }
-        break;
-      }
     });
 
     socket.on('finalCountdown', (time) => {

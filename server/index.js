@@ -35,7 +35,6 @@ const http = (Http).Server(app);
 const io = (IO)(http);
 
 let matchStart;
-let matchTime;
 const players = [];
 const clients = {};
 let gameMode = 'waiting';
@@ -94,11 +93,17 @@ function gameLoop() {
       clients[key].emit('gameInfo', gameMode, players);
     }
   }
+  eachPlayer((player) => {
+    if (player.inGame && !countingDown) {
+      clients[player.id].emit('startedGame');
+    } else {
+      clients[player.id].emit('waitingGame');
+    }
+  });
 }
 
 function resetGame() {
   gameMode = 'waiting';
-  matchTime = 0;
   eachPlayer((player) => {
     if (player.inGame) {
       player.inGame = false;
